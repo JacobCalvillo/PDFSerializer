@@ -1,11 +1,14 @@
-from django.urls import path
-from .views import home
 from rest_framework import routers
-from .api import CertificadoViewSet, RegistrarSolicitudView
+from django.urls import path, include
+from .api import CertificateViewSet, UserViewSet
+from .views import CustomLoginView, RegisterView
 
 router = routers.DefaultRouter()
 
-router.register('api/certificados', CertificadoViewSet, 'certificados')
-router.register('api/solicitudes', RegistrarSolicitudView, 'solicitudes')
+router.register(r'certificados', CertificateViewSet)
+router.register(r'usuarios', UserViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('login/', CustomLoginView.as_view(), name='login'),
+    path('register/', RegisterView.as_view(), name='register'),
+]

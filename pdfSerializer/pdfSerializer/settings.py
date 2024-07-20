@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -69,6 +70,17 @@ TEMPLATES = [
     },
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        # Puedes agregar más autenticaciones si es necesario
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+
 WSGI_APPLICATION = 'pdfSerializer.wsgi.application'
 
 
@@ -78,7 +90,7 @@ WSGI_APPLICATION = 'pdfSerializer.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'Serializer',
+        'NAME': 'pdfSerializer',
         'USER': 'postgres',
         'PASSWORD': '1234',
         'HOST': 'localhost',
