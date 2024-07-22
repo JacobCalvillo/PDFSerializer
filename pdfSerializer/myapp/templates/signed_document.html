@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signed Document</title>
+</head>
+<body>
+    <h1>Signed Document</h1>
+    <p>Your document has been signed successfully.</p>
+    <a href="{{ signed_document_url }}" target="_blank">Download Signed Document</a><br><br>
+
+    <a href="{% url 'upload_document' %}">Upload Another Document</a>
+</body>
+</html>

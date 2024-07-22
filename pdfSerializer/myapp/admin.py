@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Certificates, DigitalSigns
+from .models import UserCertificate, DigitalSign, UserKeyPair
 
-admin.site.register(Certificates)
-admin.site.register(DigitalSigns)
+admin.site.register(UserCertificate)
+admin.site.register(DigitalSign)
+admin.site.register(UserKeyPair)

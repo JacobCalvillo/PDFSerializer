@@ -1,14 +1,17 @@
-from rest_framework import routers
+from rest_framework.routers import DefaultRouter
 from django.urls import path, include
-from .api import CertificateViewSet, UserViewSet
-from .views import CustomLoginView, RegisterView
+from .api import UserViewSet, KeyPairViewSet
+from .views import CustomLoginView, RegisterView, HomeView
 
-router = routers.DefaultRouter()
 
-router.register(r'certificados', CertificateViewSet)
+router = DefaultRouter()
 router.register(r'usuarios', UserViewSet)
+router.register(r'key-pairs', KeyPairViewSet, basename='keypair')
 
 urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='login'),
     path('register/', RegisterView.as_view(), name='register'),
+    path('key-pairs/', KeyPairViewSet.as_view({'post': 'create'}), name='keypair-create'),
+    path('home/', HomeView.as_view(), name='home'),
+    path('', include(router.urls)),  # Incluye las URLs del enrutador
 ]

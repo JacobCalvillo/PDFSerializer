@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Claves y Certificados</title>
+</head>
+<body>
+    <h1>Gestión de Claves y Certificados</h1>
+
+    <!-- Formulario para Generar Par de Claves -->
+    <h2>Generar Par de Claves</h2>
+    <form method="post" action="{% url 'home' %}">
+        {% csrf_token %}
+        <button type="submit">
+            {% if keypair_exists %}
+                Generar Nuevas Claves
+            {% else %}
+                Generar Claves
+            {% endif %}
+        </button>
+    </form>
+
+    <h2>Descargar Par de Claves</h2>
+    {% if private_key_url and public_key_url %}
+        <a href="{{ private_key_url }}" download="private_key.pem">
+            <button type="button">Descargar Clave Privada</button>
+        </a>
+        <a href="{{ public_key_url }}" download="public_key.pem">
+            <button type="button">Descargar Clave Pública</button>
+        </a>
+    {% else %}
+        <p>No hay claves disponibles para descargar.</p>
+    {% endif %}
+
+</body>
+</html>
