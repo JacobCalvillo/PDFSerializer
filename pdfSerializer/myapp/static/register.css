@@ -1,0 +1,84 @@
+/* Estilo general del cuerpo */
+body {
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #e0e0e0, #f5f5f5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden; /* Evita el desbordamiento en el cuerpo */
+}
+
+/* Contenedor del formulario de registro */
+.registration-container {
+    background: white;
+    padding: 1rem; /* Reducido padding */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 560px; /* Ancho máximo reducido */
+    text-align: center;
+    box-sizing: border-box; /* Asegura que el padding y el borde se incluyan en el ancho total */
+    overflow: hidden; /* Evita el desbordamiento dentro del contenedor */
+}
+
+/* Estilo de las etiquetas del formulario */
+.registration-container label {
+    display: block;
+    margin-bottom: 0.25rem; /* Reducido margen inferior */
+    font-weight: 500;
+    color: #333;
+}
+
+/* Estilo de los campos de entrada */
+.registration-container input {
+    width: 100%;
+    padding: 0.5rem; /* Reducido padding */
+    margin-bottom: 0.75rem; /* Reducido margen inferior */
+    border: 1px solid #ddd;
+    border-radius: 6px; /* Reducido el radio del borde */
+    box-sizing: border-box; /* Asegura que el padding y el borde se incluyan en el ancho total */
+    font-size: 0.9rem; /* Tamaño de fuente más pequeño */
+    transition: border-color 0.3s ease;
+}
+
+/* Efecto al enfocar los campos de entrada */
+.registration-container input:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+/* Estilo del botón de envío */
+.registration-container button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.5rem; /* Reducido padding */
+    border-radius: 6px; /* Reducido el radio del borde */
+    cursor: pointer;
+    width: 100%;
+    font-size: 1rem; /* Tamaño de fuente ajustado */
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+
+/* Efecto al pasar el ratón sobre el botón */
+.registration-container button:hover {
+    background-color: #0056b3;
+}
+
+/* Estilo del enlace de inicio de sesión */
+.registration-container p {
+    margin-top: 1rem; /* Reducido margen superior */
+}
+
+.registration-container a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.registration-container a:hover {
+    text-decoration: underline;
+}

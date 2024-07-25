@@ -11,23 +11,6 @@ class UserCertificate(models.Model):
     def __str__(self):
         return self.certificate_name
 
-class DigitalSign(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    doc_name = models.CharField(max_length=255, null=False)
-    sign_url = models.URLField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.doc_name
-
-class UserKeyPair(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    private_key_url = models.TextField()# Aumenta el tamaño del campo
-    public_key_url = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f'KeyPair for {self.user.username}'
 
 class SignedDocument(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

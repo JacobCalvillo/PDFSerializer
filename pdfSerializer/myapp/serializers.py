@@ -1,17 +1,13 @@
 from rest_framework import serializers
-from myapp.models import UserCertificate, DigitalSign, UserKeyPair
+from myapp.models import UserCertificate
 from django.contrib.auth.models import User
 from .models import SignedDocument
+
 
 class CertificateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserCertificate
         fields = ['id', 'user', 'certificate_name', 'url_storage', 'timestamp']
-
-class DigitalSignSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DigitalSign
-        fields = '__all__'
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,10 +27,6 @@ class UserSerializer(serializers.ModelSerializer):
         )
         return user
 
-class KeyPairSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserKeyPair
-        fields = ['user', 'private_key_url', 'public_key_url', 'created_at']
 
 class CertificateSerializer(serializers.ModelSerializer):
     class Meta:

@@ -1,0 +1,83 @@
+/* Estilo general del cuerpo */
+body {
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+/* Contenedor del formulario de inicio de sesión */
+.login-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+}
+
+/* Estilo de las etiquetas del formulario */
+.login-container label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+
+/* Estilo de los campos de entrada */
+.login-container input {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box; /* Incluye padding y border en el width */
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+/* Efecto al enfocar los campos de entrada */
+.login-container input:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+/* Estilo del botón de envío */
+.login-container button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1.125rem;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+
+/* Efecto al pasar el ratón sobre el botón */
+.login-container button:hover {
+    background-color: #0056b3;
+}
+
+/* Estilo del enlace de registro */
+.login-container p {
+    margin-top: 1.25rem;
+}
+
+.login-container a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-container a:hover {
+    text-decoration: underline;
+}
+
+

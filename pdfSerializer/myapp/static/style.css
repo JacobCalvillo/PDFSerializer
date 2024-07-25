@@ -1,0 +1,141 @@
+body,ul, li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: Arial, sans-serif; /* Font style */
+}
+
+.navbar {
+    background-color: #333; /* Dark background color */
+    overflow: hidden; /* Clear floats */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Slight shadow for depth */
+}
+
+.navbar ul {
+    display: flex; /* Flex layout for horizontal alignment */
+    justify-content: space-around; /* Equal spacing between items */
+    align-items: center; /* Vertically center items */
+    padding: 10px 0; /* Padding for top and bottom */
+}
+
+.navbar li {
+    flex: 1; /* Distribute items evenly */
+    text-align: center; /* Center the text */
+}
+
+.navbar a {
+    color: white; /* Text color */
+    text-decoration: none; /* Remove underline */
+    padding: 10px 20px; /* Padding inside links */
+    display: block; /* Make the link fill the li element */
+    transition: background-color 0.3s ease; /* Smooth transition for hover */
+}
+
+.navbar a:hover {
+    background-color: #555; /* Background color on hover */
+    border-radius: 4px; /* Rounded corners */
+}
+
+
+@media (max-width: 768px) {
+    .navbar ul {
+        flex-direction: column; /* Stack items vertically */
+    }
+
+    .navbar li {
+        text-align: left; /* Align text to the left */
+    }
+
+    .navbar a {
+        padding: 10px; /* Adjust padding for better touch targets */
+    }
+}
+
+/* Reset básico */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+
+/* Encabezado principal */
+h1 {
+    font-size: 2rem;
+    color: #0056b3;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Sección de formularios */
+h2 {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+/* Estilos del formulario */
+form {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-width: 500px;
+    margin: 20px auto;
+    text-align: center;
+}
+
+/* Botones del formulario */
+form button {
+    background-color: #0056b3;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+}
+
+form button:hover {
+    background-color: #004494;
+}
+
+/* Sección de descargas */
+
+.centrar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+a {
+    text-decoration: none;
+}
+
+a button {
+    background-color: #28a745;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin: 10px;
+    transition: background-color 0.3s;
+}
+
+a button:hover {
+    background-color: #218838;
+}
+
+/* Mensaje si no hay claves */
+p {
+    text-align: center;
+    color: #666;
+    margin-top: 10px;
+    font-style: italic;
+}
+
