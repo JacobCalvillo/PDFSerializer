@@ -11,3 +11,7 @@ class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
         fields = ('username', 'first_name', 'last_name', 'email', 'password1', 'password2')
+
+class PDFUploadForm(forms.Form):
+    pdf = forms.FileField(label="PDF Document")
+    private_key = forms.FileField(label="Private Key")

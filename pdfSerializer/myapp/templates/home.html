@@ -2,20 +2,24 @@
 {% load static %}
 
 {% block content %}
-<h1>Gestión de Claves</h1>
+<h1>Firma Digital</h1>
 
-<!-- Formulario para Generar Par de Claves -->
-<h2>Generar Par de Claves</h2>
-<form method="post" action="{% url 'keypair-create' %}">
-    {% csrf_token %}
-    <button type="submit">Generar Claves</button>
-</form>
+<h2>Firma Digital</h2>
+<div class="form-container">
+    <h1>Upload and Sign PDF</h1>
+    <form method="post" enctype="multipart/form-data" action="{% url 'sign-pdf' %}">
+        {% csrf_token %}
+        <div>
+            <label for="pdf">PDF Document:</label>
+            <input type="file" id="pdf" name="pdf" required>
+        </div>
+        <div>
+            <label for="private_key">Private Key:</label>
+            <input type="file" id="private_key" name="private_key" required>
+        </div>
+        <button type="submit">Upload and Sign PDF</button>
+    </form>
+</div>
 
-{% if messages %}
-    <ul>
-    {% for message in messages %}
-        <li>{{ message }}</li>
-    {% endfor %}
-    </ul>
-{% endif %}
+
 {% endblock content %}

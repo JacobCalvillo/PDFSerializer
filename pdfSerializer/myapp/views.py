@@ -9,11 +9,59 @@ from django.views.generic import TemplateView
 from firebase_admin import auth as firebase_auth
 from firebase_admin.exceptions import FirebaseError
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
+from myapp.utils.storage import upload_to_firebase
+from myapp.utils.signPdf import sign_pdf
+from myapp.forms.forms import PDFUploadForm
+from django.http import HttpResponse 
+from myapp.utils.crypto import load_private_key
 
-
-class UploadDocumentView(View):
+class PdfSignView(View):
     def get(self, request, *args, **kwargs):
-        return render(request, 'upload_document.html')
+        form = PDFUploadForm()
+        return render(request, 'home.html', {'form': form})
+
+    def post(self, request, *args, **kwargs):
+        form = PDFUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            pdf_file = request.FILES.get('pdf')
+            private_key_file = request.FILES.get('private_key')
+
+            if not pdf_file or not private_key_file:
+                messages.error(request, "Both PDF file and private key must be provided.")
+                return render(request, 'home.html', {'form': form})
+            
+            try:
+                # Load and decrypt the private key
+                private_key = load_private_key(private_key_file)
+                
+                # Sign the PDF
+                signed_pdf = sign_pdf(pdf_file, private_key)
+
+                # Upload to Firebase
+                user_id = request.user.id
+                file_name = 'signed_document.pdf'
+                content_type = 'application/pdf'
+                file_data = signed_pdf.getvalue()
+
+                # Call the function to upload the signed PDF to Firebase
+                blob_name = upload_to_firebase(user_id, file_data, file_name, content_type)
+
+                # Provide feedback to the user
+                messages.success(request, f"PDF signed and uploaded to Firebase. Blob name: {blob_name}")
+
+                # Return the signed PDF as a response
+                response = HttpResponse(signed_pdf, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+                return response
+
+            except Exception as e:
+                messages.error(request, f"An error occurred: {e}")
+        
+        else:
+            messages.error(request, "Invalid form submission.")
+        
+        return render(request, 'home.html', {'form': form})
     
 class SignedDocumentView(View):
     def get(self, request, *args, **kwargs):
@@ -23,7 +71,9 @@ class SignedDocumentView(View):
         return render(request, 'error.html', {'error': 'No signed document URL provided'})
 
 class HomeView(LoginRequiredMixin, TemplateView):
-    template_name = 'home.html' 
+    template_name = 'home.html'
+    login_url = 'login'
+    redirect_field_name = 'next'
 
 
 class CustomLoginView(LoginView):
@@ -32,6 +82,11 @@ class CustomLoginView(LoginView):
 
     def get_success_url(self):
         return self.success_url
+    
+    def form_invalid(self, form):
+        messages.error(self.request, "Invalid username or password.")
+        return super().form_invalid(form)
+
 
 class RegisterView(View):
     def get(self, request, *args, **kwargs):
@@ -42,21 +97,25 @@ class RegisterView(View):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            auth_login(request, user)  # Iniciar sesión automáticamente después del registro
+            auth_login(request, user)
 
-            # Registrar en Firebase
+            # Register in Firebase
             try:
                 firebase_user = firebase_auth.create_user(
                     email=user.email,
-                    password=user.password,  # Asegúrate de tener el password en el formulario
+                    password=form.cleaned_data.get('password1'),  # Ensure password is retrieved correctly
                     display_name=user.username
                 )
                 print(f'Usuario registrado en Firebase: {firebase_user.uid}')
             except FirebaseError as e:
                 print(f'Error al registrar en Firebase: {str(e)}')
-                # Manejo de errores adicional aquí
+                messages.error(request, f'Error registering in Firebase: {str(e)}')
 
-            return redirect('home')  # Redirige a la página principal u otra página después del registro
+            messages.success(request, 'Registration successful!')
+            return redirect('home')
+        else:
+            for error in form.errors.values():
+                messages.error(request, error)
         return render(request, 'register.html', {'form': form})
 
 
