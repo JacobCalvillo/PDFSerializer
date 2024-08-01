@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from myapp.models import UserCertificate
 from django.contrib.auth.models import User
 from .models import SignedDocument
 
@@ -20,12 +19,6 @@ class UserSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
-
-
-class CertificateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserCertificate
-        fields = ['user', 'certificate_name', 'issued_at', 'valid_until']
 
 class SignedDocumentSerializer(serializers.ModelSerializer):
     class Meta:

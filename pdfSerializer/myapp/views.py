@@ -10,12 +10,13 @@ from firebase_admin import auth as firebase_auth
 from firebase_admin.exceptions import FirebaseError
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from myapp.utils.storage import upload_to_firebase
-from myapp.utils.signPdf import encrypt_pdf, decrypt_pdf
-from myapp.forms.forms import PDFUploadFormEncrypt, PDFUploadFormDecrypt
+from myapp.models import SignedDocument
+from myapp.utils.storage import download_from_firebase, get_files_from_firebase, get_download_url
+from myapp.utils.signPdf import encrypt_pdf,decrypt_pdf
+from myapp.forms.forms import PDFUploadFormEncrypt
 from django.http import HttpResponse 
 from myapp.firebase.firebase import bucket
-import io
+from io import BytesIO
 from myapp.utils.crypto import generate_rsa_keys,load_public_key, load_private_key
 import zipfile
 import logging
@@ -32,7 +33,7 @@ class KeyPairView(LoginRequiredMixin, View):
             private_key_pem, public_key_pem = generate_rsa_keys()
 
             # Create a zip file in memory
-            zip_buffer = io.BytesIO()
+            zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
                 zip_file.writestr('private_key.pem', private_key_pem)
                 zip_file.writestr('public_key.pem', public_key_pem)
@@ -59,6 +60,7 @@ class PDFEncryptView(View):
         form = PDFUploadFormEncrypt(request.POST, request.FILES)
         if form.is_valid():
             pdf_file = request.FILES.get('pdf')
+            print(pdf_file)
             public_key_file = request.FILES.get('public_key')
             
             try:
@@ -74,20 +76,21 @@ class PDFEncryptView(View):
                     messages.error(request, "Failed to encrypt the PDF.")
                     return render(request, 'signPDF.html', {'form': form})
 
-                # Upload to Firebase
+                # Save to database
                 user_id = request.user.id
                 file_name = 'encrypted_document.pdf'
-                content_type = 'application/pdf'
-                file_data = encrypted_pdf
-
-                # Call the function to upload the encrypted PDF to Firebase
-                upload_to_firebase(user_id, file_data, file_name, content_type)
+                signed_document = SignedDocument(
+                    user_id=user_id,
+                    original_file_url=pdf_file,
+                    encrypted_file=encrypted_pdf
+                )
+                signed_document.save()
 
                 # Provide feedback to the user
-                messages.success(request, "PDF encrypted and uploaded to Firebase.")
+                messages.success(request, "PDF encrypted and saved to database.")
 
                 # Return the encrypted PDF as a response
-                response = HttpResponse(file_data, content_type='application/pdf')
+                response = HttpResponse(encrypted_pdf, content_type='application/pdf')
                 response['Content-Disposition'] = f'attachment; filename="{file_name}"'
                 return response
 
@@ -110,6 +113,24 @@ class HomeView(LoginRequiredMixin, TemplateView):
 class CustomLoginView(LoginView):
     template_name = 'login.html'
     success_url = reverse_lazy('home')  # Redirige a 'home' después del inicio de sesión
+
+    def form_valid(self, form):
+        # Llama al método base para autenticar al usuario en Django
+        response = super().form_valid(form)
+
+        user = form.get_user()
+        # Autenticación en Firebase
+        try:
+            # Autenticación con Firebase
+            firebase_user = firebase_auth.get_user_by_email(user.email)
+            print(f'Usuario autenticado en Firebase: {firebase_user.uid}')
+        except FirebaseError as e:
+            print(f'Error al autenticar en Firebase: {str(e)}')
+            messages.error(self.request, f'Error authenticating with Firebase: {str(e)}')
+
+        # Autenticación en Django
+        auth_login(self.request, user)
+        return response
 
     def get_success_url(self):
         return self.success_url
@@ -163,52 +184,59 @@ class ListFilesView(View):
 
 class PDFDecryptView(View):
     def get(self, request):
-        form = PDFUploadFormDecrypt()
-        return render(request, 'decrypt.html', {"form": form})
+        # Retrieve user files from the database
+        user_files = SignedDocument.objects.filter(user=request.user)
+        return render(request, 'decrypt.html', {'files': user_files})
 
     def post(self, request):
-        form = PDFUploadFormDecrypt(request.POST, request.FILES)
-        if form.is_valid():
-            file_name = request.POST.get('file')
+        if request.method == "POST":
+            file_id = request.POST.get('file')
             private_key_file = request.FILES.get('private_key')
 
-            if not file_name:
-                messages.error(request, "No file selected.")
-                return render(request, 'decrypt.html', {'form': form})
+            if not file_id or not private_key_file:
+                messages.error(request, "Both file and private key are required.")
+                user_files = SignedDocument.objects.filter(user=request.user)
+                return render(request, 'decrypt.html', {'files': user_files})
 
             try:
                 # Load the private key
                 private_key = load_private_key(private_key_file)
                 if not private_key:
                     messages.error(request, "Failed to load private key.")
-                    return render(request, 'decrypt.html', {'form': form})
+                    user_files = SignedDocument.objects.filter(user=request.user)
+                    return render(request, 'decrypt.html', {'files': user_files})
 
-                # Download the encrypted PDF from Firebase
-                blob = bucket.blob(file_name)
-                encrypted_pdf_data = blob.download_as_bytes()
+                # Retrieve the encrypted PDF file from the database
+                try:
+                    signed_document = SignedDocument.objects.get(id=file_id, user=request.user)
+                    encrypted_pdf = signed_document.encrypted_file
+                except SignedDocument.DoesNotExist:
+                    messages.error(request, "File not found.")
+                    user_files = SignedDocument.objects.filter(user=request.user)
+                    return render(request, 'decrypt.html', {'files': user_files})
 
                 # Decrypt the PDF
-                decrypted_pdf = decrypt_pdf(encrypted_pdf_data, private_key)
+                decrypted_pdf = decrypt_pdf(encrypted_pdf, private_key)
                 if not decrypted_pdf:
                     messages.error(request, "Failed to decrypt the PDF.")
-                    return render(request, 'decrypt.html', {'form': form})
+                    user_files = SignedDocument.objects.filter(user=request.user)
+                    return render(request, 'decrypt.html', {'files': user_files})
 
                 # Provide feedback to the user
                 messages.success(request, "PDF decrypted successfully.")
 
                 # Return the decrypted PDF as a response
                 response = HttpResponse(decrypted_pdf, content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="{file_name.replace("encrypted_", "")}"'
+                response['Content-Disposition'] = f'attachment; filename="decrypted_{file_id}.pdf"'
                 return response
 
             except Exception as e:
-                logger.error(f"An error occurred: {e}")
                 messages.error(request, f"An error occurred: {e}")
+                user_files = SignedDocument.objects.filter(user=request.user)
+                return render(request, 'decrypt.html', {'files': user_files})
 
-        else:
-            messages.error(request, "Invalid form submission.")
-        
-        return render(request, 'decrypt.html', {'form': form})
+        user_files = SignedDocument.objects.filter(user=request.user)
+        return render(request, 'decrypt.html', {'files': user_files})
 
         
 

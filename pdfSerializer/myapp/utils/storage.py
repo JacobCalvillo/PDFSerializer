@@ -35,3 +35,28 @@ def get_download_url(file_path):
         return None
 
 
+def get_files_from_firebase(user_id):
+    files = []
+    blobs = bucket.list_blobs(prefix=f'{user_id}/')
+    for blob in blobs:
+        file_info = {
+            'name': blob.name,
+            'download_url': blob.generate_signed_url(
+                version='v4',
+                expiration=datetime.timedelta(minutes=10),  # Adjust the expiration as needed
+                method='GET'
+            )
+        }
+        files.append(file_info)
+    return files
+
+def download_from_firebase(user_id, file_name):
+    file_path = f'{user_id}/{file_name}'
+    blob = bucket.blob(file_path)
+    
+    try:
+        logger.info(f"Attempting to download file from Firebase: {file_path}")
+        return blob.download_as_bytes()
+    except Exception as e:
+        logger.error(f"Error downloading from Firebase: {e}")
+        return None

@@ -38,7 +38,7 @@ def load_public_key(file):
 def load_private_key(file):
     try:
         private_key_pem = file.read()
-        private_key = serialization.load_pem_private_key(private_key_pem, backend=default_backend())
+        private_key = serialization.load_pem_private_key(private_key_pem,password=None, backend=default_backend())
         return private_key
     except Exception as e:
         logger.error(f"Error loading private key: {e}")

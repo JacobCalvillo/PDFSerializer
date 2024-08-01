@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import UserCertificate
+from .models import SignedDocument
 
-admin.site.register(UserCertificate)
+admin.site.register(SignedDocument)
 

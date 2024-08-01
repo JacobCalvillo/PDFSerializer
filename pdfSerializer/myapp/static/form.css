@@ -99,3 +99,11 @@ body {
 .messages li {
     margin-bottom: 0.5em;
 }
+
+.messages .error {
+    background-color: #f44336; /* Red for errors */
+}
+
+.messages .success {
+    background-color: #4CAF50; /* Green for success */
+}

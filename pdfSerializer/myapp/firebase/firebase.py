@@ -1,5 +1,5 @@
 import firebase_admin
-from firebase_admin import credentials, storage
+from firebase_admin import credentials, storage, auth
 
 cred = credentials.Certificate("/Users/jacob/OneDrive/Escritorio/Serializer/pdfserializer-firebase-adminsdk-dg309-3fe1c3e6df.json")
 

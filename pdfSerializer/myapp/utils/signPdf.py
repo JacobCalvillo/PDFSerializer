@@ -54,23 +54,21 @@ def encrypt_pdf(input_pdf_file, public_key):
         logger.error(f"Error in encrypt_pdf: {e}")
         return None
 
-def decrypt_pdf(encrypted_pdf_data, private_key_pem):
+
+def decrypt_pdf(encrypted_pdf_data, private_key):
     try:
-        # Load the private key
-        private_key = serialization.load_pem_private_key(private_key_pem, password=None, backend=default_backend())
-        
         # Create a byte stream from the encrypted PDF data
         encrypted_stream = BytesIO(encrypted_pdf_data)
-
-        # Read the encrypted symmetric key
-        encrypted_symmetric_key = encrypted_stream.read(256)  # RSA key size; adjust if needed
+        print(1)
+        # Read the encrypted symmetric key (adjust size as necessary)
+        encrypted_symmetric_key = encrypted_stream.read(256)  # Example size for a 2048-bit RSA key
         
-        # Read the IV used for AES
-        iv = encrypted_stream.read(16)  # AES block size; adjust if needed
+        # Read the IV used for AES (16 bytes for AES)
+        iv = encrypted_stream.read(16)
         
         # Read the encrypted PDF data
         encrypted_pdf_data = encrypted_stream.read()
-
+        
         # Decrypt the symmetric key with the private key
         symmetric_key = private_key.decrypt(
             encrypted_symmetric_key,
@@ -86,11 +84,7 @@ def decrypt_pdf(encrypted_pdf_data, private_key_pem):
         decryptor = cipher.decryptor()
         decrypted_pdf_data = decryptor.update(encrypted_pdf_data) + decryptor.finalize()
 
-        # Write the decrypted PDF data to output
-        output = BytesIO()
-        output.write(decrypted_pdf_data)
-        output.seek(0)
-        return output.getvalue()
+        return decrypted_pdf_data
 
     except Exception as e:
         logger.error(f"Error in decrypt_pdf: {e}")
