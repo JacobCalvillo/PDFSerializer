@@ -1,57 +1,97 @@
-from pyhanko.sign import signers, fields
-import datetime
-from pyhanko.sign.signers import cms_embedder
-from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
-from io import BytesIO
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from PyPDF2 import PdfReader, PdfWriter
 import logging
+from io import BytesIO
+import os
 
 logger = logging.getLogger(__name__)
 
-def sign_pdf(input_pdf_file, private_key):
-    # Prepare the PDF for signing
-    input_buf = BytesIO(input_pdf_file.read())
-    writer = IncrementalPdfFileWriter(input_buf)
+def encrypt_pdf(input_pdf_file, public_key):
+    try:
+        # Read and prepare the PDF file
+        reader = PdfReader(input_pdf_file)
+        writer = PdfWriter()
 
-    # Phase 1: Setup the signature field
-    cms_writer = cms_embedder.PdfCMSEmbedder().write_cms(
-        field_name='Signature', writer=writer
-    )
-    sig_field_ref = next(cms_writer)
+        for page_num in range(len(reader.pages)):
+            writer.add_page(reader.pages[page_num])
 
-    # Just for verification
-    assert sig_field_ref.get_object()['/T'] == 'Signature'
+        # Write the PDF to a byte stream
+        pdf_buffer = BytesIO()
+        writer.write(pdf_buffer)
+        pdf_data = pdf_buffer.getvalue()
 
-    # Phase 2: Create a signature object
-    timestamp = datetime.now()
-    sig_obj = signers.SignatureObject(timestamp=timestamp, bytes_reserved=8192)
+        # Generate a symmetric key for AES encryption
+        symmetric_key = os.urandom(32)  # AES-256 key
+        iv = os.urandom(16)  # Initialization vector
 
-    md_algorithm = 'sha256'
-    cms_writer.send(
-        cms_embedder.SigObjSetup(
-            sig_placeholder=sig_obj,
-            mdp_setup=cms_embedder.SigMDPSetup(
-                md_algorithm=md_algorithm, certify=True,
-                docmdp_perms=fields.MDPPerm.NO_CHANGES
+        # Encrypt the PDF data with AES
+        cipher = Cipher(algorithms.AES(symmetric_key), modes.CFB(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+        encrypted_pdf_data = encryptor.update(pdf_data) + encryptor.finalize()
+
+        # Encrypt the symmetric key with the public key
+        encrypted_symmetric_key = public_key.encrypt(
+            symmetric_key,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
             )
         )
-    )
 
-    # Phase 3: Prepare for signing
-    prep_digest, output = cms_writer.send(
-        cms_embedder.SigIOSetup(md_algorithm=md_algorithm, in_place=True)
-    )
+        # Write encrypted symmetric key and encrypted data to output
+        output = BytesIO()
+        output.write(encrypted_symmetric_key)
+        output.write(iv)  # Include the IV used for AES encryption
+        output.write(encrypted_pdf_data)
+        output.seek(0)
+        return output.getvalue()
 
-    # Phase 4: Sign the PDF
-    signer = signers.SimpleSigner(
-        signing_cert=None,  # If no certificate, set it to None
-        private_key=private_key
-    )
-    cms_bytes = signer.sign(
-        data_digest=prep_digest.document_digest,
-        digest_algorithm=md_algorithm, timestamp=timestamp
-    ).dump()
-    cms_writer.send(cms_bytes)
+    except Exception as e:
+        logger.error(f"Error in encrypt_pdf: {e}")
+        return None
 
-    # The signed PDF is in `output`
-    output.seek(0)
-    return output
+def decrypt_pdf(encrypted_pdf_data, private_key_pem):
+    try:
+        # Load the private key
+        private_key = serialization.load_pem_private_key(private_key_pem, password=None, backend=default_backend())
+        
+        # Create a byte stream from the encrypted PDF data
+        encrypted_stream = BytesIO(encrypted_pdf_data)
+
+        # Read the encrypted symmetric key
+        encrypted_symmetric_key = encrypted_stream.read(256)  # RSA key size; adjust if needed
+        
+        # Read the IV used for AES
+        iv = encrypted_stream.read(16)  # AES block size; adjust if needed
+        
+        # Read the encrypted PDF data
+        encrypted_pdf_data = encrypted_stream.read()
+
+        # Decrypt the symmetric key with the private key
+        symmetric_key = private_key.decrypt(
+            encrypted_symmetric_key,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+
+        # Decrypt the PDF data with AES
+        cipher = Cipher(algorithms.AES(symmetric_key), modes.CFB(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+        decrypted_pdf_data = decryptor.update(encrypted_pdf_data) + decryptor.finalize()
+
+        # Write the decrypted PDF data to output
+        output = BytesIO()
+        output.write(decrypted_pdf_data)
+        output.seek(0)
+        return output.getvalue()
+
+    except Exception as e:
+        logger.error(f"Error in decrypt_pdf: {e}")
+        return None

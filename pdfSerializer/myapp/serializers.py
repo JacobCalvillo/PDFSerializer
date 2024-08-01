@@ -3,12 +3,6 @@ from myapp.models import UserCertificate
 from django.contrib.auth.models import User
 from .models import SignedDocument
 
-
-class CertificateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserCertificate
-        fields = ['id', 'user', 'certificate_name', 'url_storage', 'timestamp']
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

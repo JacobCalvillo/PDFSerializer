@@ -12,6 +12,10 @@ class CustomUserCreationForm(UserCreationForm):
         model = User
         fields = ('username', 'first_name', 'last_name', 'email', 'password1', 'password2')
 
-class PDFUploadForm(forms.Form):
+class PDFUploadFormEncrypt(forms.Form):
     pdf = forms.FileField(label="PDF Document")
-    private_key = forms.FileField(label="Private Key")
+    public_key = forms.FileField(label="Public Key")
+
+class PDFUploadFormDecrypt(forms.Form):
+    pdf = forms.FileField(label="PDF Document")
+    private_key = forms.FileField(label='Private Key')

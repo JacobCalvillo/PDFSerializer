@@ -6,17 +6,14 @@ from google.auth.exceptions import GoogleAuthError
 logger = logging.getLogger(__name__)
 
 def upload_to_firebase(user_id, file_data, file_name, content_type):
-    """Sube un archivo al bucket de Firebase Storage."""
-    blob = bucket.blob(f'{user_id}/{file_name}')
-    
-    # Subir el archivo desde una cadena (en bytes)
-    blob.upload_from_string(file_data, content_type=content_type)
-    
-    logger.info(f'Uploaded file {file_name} for user {user_id}')
-    
-    # No se devuelve la URL pública aquí
-    return blob.name  # Devolvemos el nombre del blob para usarlo en la generación de URL
-
+    try:
+        blob = bucket.blob(f'{user_id}/{file_name}')
+        blob.upload_from_string(file_data, content_type=content_type)
+        blob.make_public()
+        return blob.name
+    except Exception as e:
+        print(f"Error in upload_to_firebase: {e}")
+        return None
 
 def get_download_url(file_path):
     """Genera una URL de descarga firmada para un archivo en Firebase Storage."""
@@ -36,4 +33,5 @@ def get_download_url(file_path):
     except Exception as e:
         logger.error(f'Error: {e}')
         return None
+
 

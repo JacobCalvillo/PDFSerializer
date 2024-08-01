@@ -11,67 +11,98 @@ from firebase_admin.exceptions import FirebaseError
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from myapp.utils.storage import upload_to_firebase
-from myapp.utils.signPdf import sign_pdf
-from myapp.forms.forms import PDFUploadForm
+from myapp.utils.signPdf import encrypt_pdf, decrypt_pdf
+from myapp.forms.forms import PDFUploadFormEncrypt, PDFUploadFormDecrypt
 from django.http import HttpResponse 
-from myapp.utils.crypto import load_private_key
+from myapp.firebase.firebase import bucket
+import io
+from myapp.utils.crypto import generate_rsa_keys,load_public_key, load_private_key
+import zipfile
+import logging
 
-class PdfSignView(View):
+logger = logging.getLogger(__name__)
+
+class KeyPairView(LoginRequiredMixin, View):
+    def get(self, request):
+        return render(request, 'keypairs.html')
+
+    def post(self, request):
+        try:
+            # Generate keys
+            private_key_pem, public_key_pem = generate_rsa_keys()
+
+            # Create a zip file in memory
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+                zip_file.writestr('private_key.pem', private_key_pem)
+                zip_file.writestr('public_key.pem', public_key_pem)
+
+            zip_buffer.seek(0)
+
+            # Respond with the zip file for download
+            response = HttpResponse(zip_buffer, content_type='application/zip')
+            response['Content-Disposition'] = 'attachment; filename=key_pair.zip'
+
+            messages.success(request, "Se han generado las claves.")
+            return response
+
+        except Exception as e:
+            messages.error(request, f"Error al generar las claves: {str(e)}")
+            return redirect('generate_keys')  # Ensure this matches the URL name
+        
+class PDFEncryptView(View):
     def get(self, request, *args, **kwargs):
-        form = PDFUploadForm()
-        return render(request, 'home.html', {'form': form})
+        form = PDFUploadFormEncrypt()
+        return render(request, 'signPDF.html', {'form': form})
 
     def post(self, request, *args, **kwargs):
-        form = PDFUploadForm(request.POST, request.FILES)
+        form = PDFUploadFormEncrypt(request.POST, request.FILES)
         if form.is_valid():
             pdf_file = request.FILES.get('pdf')
-            private_key_file = request.FILES.get('private_key')
-
-            if not pdf_file or not private_key_file:
-                messages.error(request, "Both PDF file and private key must be provided.")
-                return render(request, 'home.html', {'form': form})
+            public_key_file = request.FILES.get('public_key')
             
             try:
-                # Load and decrypt the private key
-                private_key = load_private_key(private_key_file)
-                
-                # Sign the PDF
-                signed_pdf = sign_pdf(pdf_file, private_key)
+                # Load the public key
+                public_key = load_public_key(public_key_file)
+                if not public_key:
+                    messages.error(request, "Failed to load public key.")
+                    return render(request, 'signPDF.html', {'form': form})
+
+                # Encrypt the PDF
+                encrypted_pdf = encrypt_pdf(pdf_file, public_key)
+                if not encrypted_pdf:
+                    messages.error(request, "Failed to encrypt the PDF.")
+                    return render(request, 'signPDF.html', {'form': form})
 
                 # Upload to Firebase
                 user_id = request.user.id
-                file_name = 'signed_document.pdf'
+                file_name = 'encrypted_document.pdf'
                 content_type = 'application/pdf'
-                file_data = signed_pdf.getvalue()
+                file_data = encrypted_pdf
 
-                # Call the function to upload the signed PDF to Firebase
-                blob_name = upload_to_firebase(user_id, file_data, file_name, content_type)
+                # Call the function to upload the encrypted PDF to Firebase
+                upload_to_firebase(user_id, file_data, file_name, content_type)
 
                 # Provide feedback to the user
-                messages.success(request, f"PDF signed and uploaded to Firebase. Blob name: {blob_name}")
+                messages.success(request, "PDF encrypted and uploaded to Firebase.")
 
-                # Return the signed PDF as a response
-                response = HttpResponse(signed_pdf, content_type='application/pdf')
+                # Return the encrypted PDF as a response
+                response = HttpResponse(file_data, content_type='application/pdf')
                 response['Content-Disposition'] = f'attachment; filename="{file_name}"'
                 return response
 
             except Exception as e:
+                logger.error(f"An error occurred: {e}")
                 messages.error(request, f"An error occurred: {e}")
         
         else:
             messages.error(request, "Invalid form submission.")
         
-        return render(request, 'home.html', {'form': form})
-    
-class SignedDocumentView(View):
-    def get(self, request, *args, **kwargs):
-        signed_document_url = request.GET.get('signed_document_url')
-        if signed_document_url:
-            return render(request, 'signed_document.html', {'signed_document_url': signed_document_url})
-        return render(request, 'error.html', {'error': 'No signed document URL provided'})
+        return render(request, 'signPDF.html', {'form': form})
+
 
 class HomeView(LoginRequiredMixin, TemplateView):
-    template_name = 'home.html'
+    template_name = 'signPDF.html'
     login_url = 'login'
     redirect_field_name = 'next'
 
@@ -118,6 +149,66 @@ class RegisterView(View):
                 messages.error(request, error)
         return render(request, 'register.html', {'form': form})
 
+class ListFilesView(View):
+    def get(self, request):
+        user_id = request.user.id
+        try:
+            blobs = bucket.list_blobs(prefix=f'{user_id}/')
+            files = [blob.name for blob in blobs]
+        except Exception as e:
+            logger.error(f"Error retrieving files: {e}")
+            files = []
 
+        return render(request, 'list_files.html', {'files': files})
 
+class PDFDecryptView(View):
+    def get(self, request):
+        form = PDFUploadFormDecrypt()
+        return render(request, 'decrypt.html', {"form": form})
+
+    def post(self, request):
+        form = PDFUploadFormDecrypt(request.POST, request.FILES)
+        if form.is_valid():
+            file_name = request.POST.get('file')
+            private_key_file = request.FILES.get('private_key')
+
+            if not file_name:
+                messages.error(request, "No file selected.")
+                return render(request, 'decrypt.html', {'form': form})
+
+            try:
+                # Load the private key
+                private_key = load_private_key(private_key_file)
+                if not private_key:
+                    messages.error(request, "Failed to load private key.")
+                    return render(request, 'decrypt.html', {'form': form})
+
+                # Download the encrypted PDF from Firebase
+                blob = bucket.blob(file_name)
+                encrypted_pdf_data = blob.download_as_bytes()
+
+                # Decrypt the PDF
+                decrypted_pdf = decrypt_pdf(encrypted_pdf_data, private_key)
+                if not decrypted_pdf:
+                    messages.error(request, "Failed to decrypt the PDF.")
+                    return render(request, 'decrypt.html', {'form': form})
+
+                # Provide feedback to the user
+                messages.success(request, "PDF decrypted successfully.")
+
+                # Return the decrypted PDF as a response
+                response = HttpResponse(decrypted_pdf, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{file_name.replace("encrypted_", "")}"'
+                return response
+
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
+                messages.error(request, f"An error occurred: {e}")
+
+        else:
+            messages.error(request, "Invalid form submission.")
+        
+        return render(request, 'decrypt.html', {'form': form})
+
+        
 
