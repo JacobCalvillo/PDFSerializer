@@ -1,24 +1,24 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}
-Decrypt PDF
-{% endblock %}
-
 {% block content %}
 
-<h2>Select File for Decryption</h2>
+<h2>Decrypt</h2>
 <div class="form-container">
-    <h1>Choose a PDF to Decrypt</h1>
+    <h1>Decrypt PDF</h1>
     <form method="post" enctype="multipart/form-data" action="{% url 'decrypt' %}">
         {% csrf_token %}
-        <!-- Include the list of files -->
-        {% include 'list_files.html' %}
-        
         <div>
-            <label for="private_key">Private Key:</label>
-            <input type="file" id="private_key" name="private_key" required>
+            <label for="file">Select File:</label>
+            <select id="file" name="file" required>
+                {% for file in files %}
+                    <option value="{{ file.id }}">{{ file.file_name }}</option>
+                {% empty %}
+                    <option value="">No files available</option>
+                {% endfor %}
+            </select>
         </div>
+    
         <button type="submit">Decrypt PDF</button>
     </form>
 </div>

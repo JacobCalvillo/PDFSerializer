@@ -2,6 +2,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from myapp.models import EncryptedFile
 
 class CustomUserCreationForm(UserCreationForm):
     first_name = forms.CharField(max_length=30, required=True)
@@ -21,6 +22,7 @@ class PDFUploadFormEncrypt(forms.Form):
         required=True,
         help_text="Select the user who will receive the encrypted file."
     )
+    private_key = forms.FileField(label="Private Key")
 
 class PDFUploadFormDecrypt(forms.Form):
     pdf = forms.FileField(label="PDF Document")

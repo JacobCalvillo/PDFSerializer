@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block title %}Encrypt{% endblock title %}	
+
 {% block content %}
 
 <h2>Encrypt</h2>
@@ -8,9 +10,6 @@
     <h1>Upload and Encrypt PDF</h1>
     <form method="post" enctype="multipart/form-data" action="{% url 'sign-pdf' %}">
         {% csrf_token %}
-
-        {% include users.html %}
-
         <div>
             <label for="pdf">PDF Document:</label>
             <input type="file" id="pdf" name="pdf" required>
@@ -19,9 +18,20 @@
             <label for="public_key">Public Key:</label>
             <input type="file" id="public_key" name="public_key" required>
         </div>
-        
-        
-
+        <div>
+            <label for="private_key">Private Key:</label>
+            <input type="file" id="private_key" name="private_key" required>
+        </div>
+        <div>
+            <label for="recipient">Recipient:</label>
+            <select id="recipient" name="recipient" required>
+                {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                {% empty %}
+                    <option value="">No users available</option>
+                {% endfor %}
+            </select>
+        </div>
         <button type="submit">Encrypt PDF</button>
     </form>
 </div>

@@ -56,7 +56,6 @@ class PDFEncryptView(View):
     def get(self, request, *args, **kwargs):
         form = PDFUploadFormEncrypt()
         users = User.objects.all()
-        print(users)  # Obtén todos los usuarios
         return render(request, 'signPDF.html', {'form': form, 'users': users})
 
     def post(self, request, *args, **kwargs):
@@ -64,30 +63,32 @@ class PDFEncryptView(View):
         if form.is_valid():
             pdf_file = request.FILES.get('pdf')
             public_key_file = request.FILES.get('public_key')
-            recipient = form.cleaned_data.get('recipient')
-            
+            recipient_id = request.POST.get('recipient')
+            private_key_file = request.FILES.get('private_key')
+
             try:
                 # Load the public key
                 public_key = load_public_key(public_key_file)
                 if not public_key:
                     messages.error(request, "Failed to load public key.")
-                    return render(request, 'signPDF.html', {'form': form})
+                    return render(request, 'signPDF.html', {'form': form, 'users': User.objects.all()})
 
                 # Encrypt the PDF
                 encrypted_pdf = encrypt_pdf(pdf_file, public_key)
                 if not encrypted_pdf:
                     messages.error(request, "Failed to encrypt the PDF.")
-                    return render(request, 'signPDF.html', {'form': form})
+                    return render(request, 'signPDF.html', {'form': form, 'users': User.objects.all()})
+
+                # Load the private key
+                private_key_pem = private_key_file.read().decode('utf-8')
 
                 # Save to database
-                user_id = request.user.id
-                file_name = 'encrypted_document.pdf'
                 EncryptedFile.objects.create(
                     sender=request.user,
-                    receiver=recipient,
-                    file_name=file_name,
+                    receiver_id=recipient_id,  # Use receiver_id instead of receiver for ForeignKey
+                    file_name=pdf_file.name,
                     encrypted_file=encrypted_pdf,
-                    private_key=''  # Save the private key if necessary
+                    private_key=private_key_pem  # Save the private key in PEM format
                 )
 
                 # Provide feedback to the user
@@ -95,7 +96,7 @@ class PDFEncryptView(View):
 
                 # Return the encrypted PDF as a response
                 response = HttpResponse(encrypted_pdf, content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+                response['Content-Disposition'] = f'attachment; filename="{pdf_file.name}"'
                 return response
 
             except Exception as e:
@@ -105,13 +106,18 @@ class PDFEncryptView(View):
         else:
             messages.error(request, "Invalid form submission.")
         
-        users = User.objects.all() 
+        users = User.objects.all()
         return render(request, 'signPDF.html', {'form': form, 'users': users})
 
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = 'signPDF.html'
     login_url = 'login'
     redirect_field_name = 'next'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['users'] = User.objects.all()  # Añade la lista de usuarios al contexto
+        return context
 
 
 class CustomLoginView(LoginView):
@@ -186,61 +192,57 @@ class ListFilesView(View):
 
         return render(request, 'list_files.html', {'files': files})
 
-# class PDFDecryptView(View):
-#     def get(self, request):
-#         # Retrieve user files from the database
-#         user_files = SignedDocument.objects.filter(user=request.user)
-#         return render(request, 'decrypt.html', {'files': user_files})
+class PDFDecryptView(View):
+    def get(self, request):
+        # Retrieve user files from the database
+        user_files = EncryptedFile.objects.filter(receiver=request.user)
+        return render(request, 'decrypt.html', {'files': user_files})
 
-#     def post(self, request):
-#         if request.method == "POST":
-#             file_id = request.POST.get('file')
-#             private_key_file = request.FILES.get('private_key')
+    def post(self, request):
+        file_id = request.POST.get('file')
 
-#             if not file_id or not private_key_file:
-#                 messages.error(request, "Both file and private key are required.")
-#                 user_files = SignedDocument.objects.filter(user=request.user)
-#                 return render(request, 'decrypt.html', {'files': user_files})
+        if not file_id:
+            messages.error(request, "File selection is required.")
+            user_files = EncryptedFile.objects.filter(receiver=request.user)
+            return render(request, 'decrypt.html', {'files': user_files})
 
-#             try:
-#                 # Load the private key
-#                 private_key = load_private_key(private_key_file)
-#                 if not private_key:
-#                     messages.error(request, "Failed to load private key.")
-#                     user_files = SignedDocument.objects.filter(user=request.user)
-#                     return render(request, 'decrypt.html', {'files': user_files})
+        try:
+            # Retrieve the encrypted PDF file and associated private key from the database
+            try:
+                encrypted_file_record = EncryptedFile.objects.get(id=file_id, receiver=request.user)
+                encrypted_pdf = encrypted_file_record.encrypted_file
+                private_key_pem = encrypted_file_record.private_key
+            except EncryptedFile.DoesNotExist:
+                messages.error(request, "File not found.")
+                user_files = EncryptedFile.objects.filter(receiver=request.user)
+                return render(request, 'decrypt.html', {'files': user_files})
 
-#                 # Retrieve the encrypted PDF file from the database
-#                 try:
-#                     signed_document = SignedDocument.objects.get(id=file_id, user=request.user)
-#                     encrypted_pdf = signed_document.encrypted_file
-#                 except SignedDocument.DoesNotExist:
-#                     messages.error(request, "File not found.")
-#                     user_files = SignedDocument.objects.filter(user=request.user)
-#                     return render(request, 'decrypt.html', {'files': user_files})
+            # Load the private key
+            private_key = load_private_key(private_key_pem)
+            if not private_key:
+                messages.error(request, "Failed to load private key.")
+                user_files = EncryptedFile.objects.filter(receiver=request.user)
+                return render(request, 'decrypt.html', {'files': user_files})
 
-#                 # Decrypt the PDF
-#                 decrypted_pdf = decrypt_pdf(encrypted_pdf, private_key)
-#                 if not decrypted_pdf:
-#                     messages.error(request, "Failed to decrypt the PDF.")
-#                     user_files = SignedDocument.objects.filter(user=request.user)
-#                     return render(request, 'decrypt.html', {'files': user_files})
+            # Decrypt the PDF
+            decrypted_pdf = decrypt_pdf(encrypted_pdf, private_key)
+            if not decrypted_pdf:
+                messages.error(request, "Failed to decrypt the PDF.")
+                user_files = EncryptedFile.objects.filter(receiver=request.user)
+                return render(request, 'decrypt.html', {'files': user_files})
 
-#                 # Provide feedback to the user
-#                 messages.success(request, "PDF decrypted successfully.")
+            # Provide feedback to the user
+            messages.success(request, "PDF decrypted successfully.")
 
-#                 # Return the decrypted PDF as a response
-#                 response = HttpResponse(decrypted_pdf, content_type='application/pdf')
-#                 response['Content-Disposition'] = f'attachment; filename="decrypted_{file_id}.pdf"'
-#                 return response
+            # Return the decrypted PDF as a response
+            response = HttpResponse(decrypted_pdf, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="decrypted_{file_id}.pdf"'
+            return response
 
-#             except Exception as e:
-#                 messages.error(request, f"An error occurred: {e}")
-#                 user_files = SignedDocument.objects.filter(user=request.user)
-#                 return render(request, 'decrypt.html', {'files': user_files})
-
-#         user_files = SignedDocument.objects.filter(user=request.user)
-#         return render(request, 'decrypt.html', {'files': user_files})
+        except Exception as e:
+            messages.error(request, f"An error occurred: {e}")
+            user_files = EncryptedFile.objects.filter(receiver=request.user)
+            return render(request, 'decrypt.html', {'files': user_files})
 
         
 
