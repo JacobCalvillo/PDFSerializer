@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import SignedDocument
+from .models import EncryptedFile
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,5 +22,4 @@ class UserSerializer(serializers.ModelSerializer):
 
 class SignedDocumentSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SignedDocument
-        fields = ['user', 'original_file_url', 'signed_file_url', 'created_at']
+        model = EncryptedFile

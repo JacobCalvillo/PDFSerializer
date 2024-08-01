@@ -15,6 +15,12 @@ class CustomUserCreationForm(UserCreationForm):
 class PDFUploadFormEncrypt(forms.Form):
     pdf = forms.FileField(label="PDF Document")
     public_key = forms.FileField(label="Public Key")
+    recipient = forms.ModelChoiceField(
+        queryset=User.objects.all(),  # Obtén todos los usuarios en la base de datos
+        label="Recipient",
+        required=True,
+        help_text="Select the user who will receive the encrypted file."
+    )
 
 class PDFUploadFormDecrypt(forms.Form):
     pdf = forms.FileField(label="PDF Document")

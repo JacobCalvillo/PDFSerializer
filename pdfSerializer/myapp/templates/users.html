@@ -1,0 +1,10 @@
+<div>
+    <label for='recipient'>Recipient:</label>
+    <select id='recipient' name='recipient' required>
+        {% for user in users %}
+            <option value="{{ user.id }}">{{ user.username }}</option>
+        {% empty %}
+            <option value="">No users available</option>
+        {% endfor %}
+    </select>
+</div>

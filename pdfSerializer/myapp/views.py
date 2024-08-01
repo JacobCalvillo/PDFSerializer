@@ -3,6 +3,7 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth import login as auth_login
 from django.shortcuts import render, redirect
 from django.views import View
+from django.contrib.auth.models import User
 from .forms.forms import CustomUserCreationForm
 from django.urls import reverse_lazy
 from django.views.generic import TemplateView
@@ -10,7 +11,7 @@ from firebase_admin import auth as firebase_auth
 from firebase_admin.exceptions import FirebaseError
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from myapp.models import SignedDocument
+from myapp.models import EncryptedFile
 from myapp.utils.storage import download_from_firebase, get_files_from_firebase, get_download_url
 from myapp.utils.signPdf import encrypt_pdf,decrypt_pdf
 from myapp.forms.forms import PDFUploadFormEncrypt
@@ -54,14 +55,16 @@ class KeyPairView(LoginRequiredMixin, View):
 class PDFEncryptView(View):
     def get(self, request, *args, **kwargs):
         form = PDFUploadFormEncrypt()
-        return render(request, 'signPDF.html', {'form': form})
+        users = User.objects.all()
+        print(users)  # Obtén todos los usuarios
+        return render(request, 'signPDF.html', {'form': form, 'users': users})
 
     def post(self, request, *args, **kwargs):
         form = PDFUploadFormEncrypt(request.POST, request.FILES)
         if form.is_valid():
             pdf_file = request.FILES.get('pdf')
-            print(pdf_file)
             public_key_file = request.FILES.get('public_key')
+            recipient = form.cleaned_data.get('recipient')
             
             try:
                 # Load the public key
@@ -79,12 +82,13 @@ class PDFEncryptView(View):
                 # Save to database
                 user_id = request.user.id
                 file_name = 'encrypted_document.pdf'
-                signed_document = SignedDocument(
-                    user_id=user_id,
-                    original_file_url=pdf_file,
-                    encrypted_file=encrypted_pdf
+                EncryptedFile.objects.create(
+                    sender=request.user,
+                    receiver=recipient,
+                    file_name=file_name,
+                    encrypted_file=encrypted_pdf,
+                    private_key=''  # Save the private key if necessary
                 )
-                signed_document.save()
 
                 # Provide feedback to the user
                 messages.success(request, "PDF encrypted and saved to database.")
@@ -101,8 +105,8 @@ class PDFEncryptView(View):
         else:
             messages.error(request, "Invalid form submission.")
         
-        return render(request, 'signPDF.html', {'form': form})
-
+        users = User.objects.all() 
+        return render(request, 'signPDF.html', {'form': form, 'users': users})
 
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = 'signPDF.html'
@@ -182,61 +186,61 @@ class ListFilesView(View):
 
         return render(request, 'list_files.html', {'files': files})
 
-class PDFDecryptView(View):
-    def get(self, request):
-        # Retrieve user files from the database
-        user_files = SignedDocument.objects.filter(user=request.user)
-        return render(request, 'decrypt.html', {'files': user_files})
+# class PDFDecryptView(View):
+#     def get(self, request):
+#         # Retrieve user files from the database
+#         user_files = SignedDocument.objects.filter(user=request.user)
+#         return render(request, 'decrypt.html', {'files': user_files})
 
-    def post(self, request):
-        if request.method == "POST":
-            file_id = request.POST.get('file')
-            private_key_file = request.FILES.get('private_key')
+#     def post(self, request):
+#         if request.method == "POST":
+#             file_id = request.POST.get('file')
+#             private_key_file = request.FILES.get('private_key')
 
-            if not file_id or not private_key_file:
-                messages.error(request, "Both file and private key are required.")
-                user_files = SignedDocument.objects.filter(user=request.user)
-                return render(request, 'decrypt.html', {'files': user_files})
+#             if not file_id or not private_key_file:
+#                 messages.error(request, "Both file and private key are required.")
+#                 user_files = SignedDocument.objects.filter(user=request.user)
+#                 return render(request, 'decrypt.html', {'files': user_files})
 
-            try:
-                # Load the private key
-                private_key = load_private_key(private_key_file)
-                if not private_key:
-                    messages.error(request, "Failed to load private key.")
-                    user_files = SignedDocument.objects.filter(user=request.user)
-                    return render(request, 'decrypt.html', {'files': user_files})
+#             try:
+#                 # Load the private key
+#                 private_key = load_private_key(private_key_file)
+#                 if not private_key:
+#                     messages.error(request, "Failed to load private key.")
+#                     user_files = SignedDocument.objects.filter(user=request.user)
+#                     return render(request, 'decrypt.html', {'files': user_files})
 
-                # Retrieve the encrypted PDF file from the database
-                try:
-                    signed_document = SignedDocument.objects.get(id=file_id, user=request.user)
-                    encrypted_pdf = signed_document.encrypted_file
-                except SignedDocument.DoesNotExist:
-                    messages.error(request, "File not found.")
-                    user_files = SignedDocument.objects.filter(user=request.user)
-                    return render(request, 'decrypt.html', {'files': user_files})
+#                 # Retrieve the encrypted PDF file from the database
+#                 try:
+#                     signed_document = SignedDocument.objects.get(id=file_id, user=request.user)
+#                     encrypted_pdf = signed_document.encrypted_file
+#                 except SignedDocument.DoesNotExist:
+#                     messages.error(request, "File not found.")
+#                     user_files = SignedDocument.objects.filter(user=request.user)
+#                     return render(request, 'decrypt.html', {'files': user_files})
 
-                # Decrypt the PDF
-                decrypted_pdf = decrypt_pdf(encrypted_pdf, private_key)
-                if not decrypted_pdf:
-                    messages.error(request, "Failed to decrypt the PDF.")
-                    user_files = SignedDocument.objects.filter(user=request.user)
-                    return render(request, 'decrypt.html', {'files': user_files})
+#                 # Decrypt the PDF
+#                 decrypted_pdf = decrypt_pdf(encrypted_pdf, private_key)
+#                 if not decrypted_pdf:
+#                     messages.error(request, "Failed to decrypt the PDF.")
+#                     user_files = SignedDocument.objects.filter(user=request.user)
+#                     return render(request, 'decrypt.html', {'files': user_files})
 
-                # Provide feedback to the user
-                messages.success(request, "PDF decrypted successfully.")
+#                 # Provide feedback to the user
+#                 messages.success(request, "PDF decrypted successfully.")
 
-                # Return the decrypted PDF as a response
-                response = HttpResponse(decrypted_pdf, content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="decrypted_{file_id}.pdf"'
-                return response
+#                 # Return the decrypted PDF as a response
+#                 response = HttpResponse(decrypted_pdf, content_type='application/pdf')
+#                 response['Content-Disposition'] = f'attachment; filename="decrypted_{file_id}.pdf"'
+#                 return response
 
-            except Exception as e:
-                messages.error(request, f"An error occurred: {e}")
-                user_files = SignedDocument.objects.filter(user=request.user)
-                return render(request, 'decrypt.html', {'files': user_files})
+#             except Exception as e:
+#                 messages.error(request, f"An error occurred: {e}")
+#                 user_files = SignedDocument.objects.filter(user=request.user)
+#                 return render(request, 'decrypt.html', {'files': user_files})
 
-        user_files = SignedDocument.objects.filter(user=request.user)
-        return render(request, 'decrypt.html', {'files': user_files})
+#         user_files = SignedDocument.objects.filter(user=request.user)
+#         return render(request, 'decrypt.html', {'files': user_files})
 
         
 

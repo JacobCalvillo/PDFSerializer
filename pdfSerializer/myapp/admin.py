@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SignedDocument
+from .models import EncryptedFile
 
-admin.site.register(SignedDocument)
+admin.site.register(EncryptedFile)
 

@@ -1,11 +1,11 @@
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import SignedDocument
+from .models import EncryptedFile
 from .serializers import UserSerializer, SignedDocumentSerializer
 from django.contrib.auth.models import User
 
 class SignedDocumentViewSet(viewsets.ModelViewSet):
-    queryset = SignedDocument.objects.all()
+    queryset = EncryptedFile.objects.all()
     serializer_class = SignedDocumentSerializer
     permission_classes = [IsAuthenticated]
 

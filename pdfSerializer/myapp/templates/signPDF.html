@@ -8,17 +8,22 @@
     <h1>Upload and Encrypt PDF</h1>
     <form method="post" enctype="multipart/form-data" action="{% url 'sign-pdf' %}">
         {% csrf_token %}
+
+        {% include users.html %}
+
         <div>
             <label for="pdf">PDF Document:</label>
             <input type="file" id="pdf" name="pdf" required>
         </div>
         <div>
-            <label for="private_key">Public Key:</label>
+            <label for="public_key">Public Key:</label>
             <input type="file" id="public_key" name="public_key" required>
         </div>
+        
+        
+
         <button type="submit">Encrypt PDF</button>
     </form>
 </div>
-
 
 {% endblock content %}
